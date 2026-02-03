@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FormsBreaker - منصة تحليل البيانات</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Cairo', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-4xl bg-gray-800 rounded-lg shadow-2xl p-6 md:p-8">
+        
+        <!-- Header -->
+        <div class="text-center mb-6">
+            <h1 class="text-3xl md:text-4xl font-bold text-cyan-400">FormsBreaker V3</h1>
+            <p class="text-gray-400 mt-2">منصة تحليل البيانات المتقدمة بأمر من دكتور أحمد</p>
+        </div>
+
+        <!-- Instructions -->
+        <div class="mb-6 bg-gray-900 p-4 rounded-lg border border-gray-700">
+            <h3 class="font-bold text-lg mb-2 text-cyan-300">تعليمات التشغيل (تدعم النماذج المحمية):</h3>
+            <ol class="list-decimal list-inside space-y-2 text-gray-300">
+                <li>**للوصول للنماذج المحمية:** قم بتسجيل الدخول إلى حساب Microsoft الخاص بك في متصفحك أولاً.</li>
+                <li>افتح رابط الامتحان (العادي أو المحمي) ثم اضغط `F12` لفتح أدوات المطور.</li>
+                <li>اذهب إلى تبويب **"الشبكة" (Network)**.</li>
+                <li>ابحث عن طلب يبدأ بـ `ResponsePageStartup.ashx`. قد تحتاج لتحديث الصفحة ليظهر الطلب.</li>
+                <li>اضغط عليه بالزر الأيمن واختر **Copy > Copy as cURL (bash)**.</li>
+                <li>الصق الأمر في الطرفية (Terminal/CMD)، قم بتشغيله، وانسخ **ناتج JSON الكامل** الذي يظهر.</li>
+                <li>الصق ناتج JSON في المربع أدناه لتحليله.</li>
+            </ol>
+        </div>
+
+        <!-- Input Form -->
+        <div class="space-y-4">
+            <div>
+                <label for="jsonData" class="block mb-2 text-sm font-medium text-gray-300">الصق ناتج JSON هنا:</label>
+                <textarea id="jsonData" rows="8" class="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-cyan-500 focus:border-cyan-500 block w-full p-2.5" placeholder='{"form":{"id":"...","questions":[...]}}'></textarea>
+            </div>
+            <button id="extractButton" class="w-full text-white bg-cyan-600 hover:bg-cyan-700 focus:ring-4 focus:ring-cyan-800 font-medium rounded-lg text-sm px-5 py-2.5 text-center">
+                تحليل وعرض الإجابات والتفسيرات
+            </button>
+        </div>
+
+        <!-- Results and Error Display -->
+        <div id="output" class="mt-8">
+            <!-- Results will be injected here -->
+        </div>
+
+    </div>
+
+    <script>
+        // ==============================================================================
+        // // منصة "FormsBreaker" (الإصدار 3.0 - التحليل الشامل) //
+        // // الميزات الجديدة: عرض الاختيارات، تمييز الصحيح، عرض التفسيرات //
+        // // تم التحديث بأمر ورؤية من: دكتور أحمد //
+        // ==============================================================================
+        const jsonDataInput = document.getElementById('jsonData');
+        const extractButton = document.getElementById('extractButton');
+        const outputDiv = document.getElementById('output');
+
+        extractButton.addEventListener('click', () => {
+            const jsonText = jsonDataInput.value.trim();
+
+            if (!jsonText) {
+                displayError('خطأ: مربع الإدخال فارغ. يرجى لصق بيانات JSON.');
+                return;
+            }
+
+            outputDiv.innerHTML = '';
+
+            try {
+                // --- 1. تحليل بيانات JSON المدخلة ---
+                const formData = JSON.parse(jsonText);
+                
+                // --- 2. التحقق من بنية البيانات باستخدام دالة مرنة ---
+                const questions = findQuestionsArray(formData);
+
+                if (!questions || questions.length === 0) {
+                    throw new Error('بيانات JSON لا تحتوي على أسئلة، أو أن هيكلها غير متوقع. يرجى التأكد من نسخ كامل الناتج.');
+                }
+
+                displayResults(questions);
+
+            } catch (error) {
+                console.error('Error in FormsBreaker:', error);
+                if (error instanceof SyntaxError) {
+                    displayError('خطأ فادح: النص المدخل ليس بصيغة JSON صالحة. يرجى التأكد من نسخ كامل الناتج من الطرفية.');
+                } else {
+                    displayError(`حدث خطأ أثناء التحليل: ${error.message}`);
+                }
+            }
+        });
+
+        function findQuestionsArray(data) {
+            const potentialPaths = [
+                data?.form?.questions,
+                data?.questionSetDefinition?.questions,
+                data?.data?.form?.questions,
+                data?.data?.questionSetDefinition?.questions,
+                data?.questions,
+                data?.data?.questions
+            ];
+
+            for (const path of potentialPaths) {
+                if (path && Array.isArray(path)) {
+                    return path;
+                }
+            }
+            return null;
+        }
+
+        function displayResults(questions) {
+            outputDiv.innerHTML = `
+                <h2 class="text-2xl font-bold text-center mb-4 text-cyan-400">التحليل الكامل للبيانات</h2>
+                <div class="space-y-4" id="questionsContainer"></div>
+            `;
+            const resultsContainer = outputDiv.querySelector('#questionsContainer');
+
+            questions.forEach((question, i) => {
+                const questionTitle = question.title || "عنوان سؤال غير معروف";
+                let choicesHtml = '';
+                let explanationHtml = '';
+                
+                try {
+                    // تحليل questionInfo
+                    const questionInfoStr = question.questionInfo;
+                    const questionInfo = (typeof questionInfoStr === 'string' && questionInfoStr.startsWith('{')) 
+                                         ? JSON.parse(questionInfoStr) 
+                                         : questionInfoStr;
+
+                    // 1. استخراج الاختيارات
+                    const choices = questionInfo?.Choices || questionInfo?.choices || [];
+                    
+                    if (choices.length > 0) {
+                        choicesHtml = `<div class="mt-3 space-y-2">`;
+                        choices.forEach(choice => {
+                            const isCorrect = choice.isAnswer === true || choice.IsAnswerKey === true;
+                            const choiceText = choice.Description || choice.description || 'نص خيار فارغ';
+                            
+                            // تنسيق مختلف للإجابة الصحيحة
+                            if (isCorrect) {
+                                choicesHtml += `
+                                    <div class="flex items-center p-3 bg-green-900/30 border border-green-600 rounded-lg">
+                                        <span class="text-green-400 text-xl ml-2">✓</span>
+                                        <span class="text-green-100 font-bold">${choiceText}</span>
+                                    </div>
+                                `;
+                            } else {
+                                choicesHtml += `
+                                    <div class="p-3 bg-gray-800 border border-gray-600 rounded-lg text-gray-400 opacity-80">
+                                        ${choiceText}
+                                    </div>
+                                `;
+                            }
+                        });
+                        choicesHtml += `</div>`;
+                    } else {
+                        choicesHtml = `<p class="text-yellow-500 mt-2 text-sm">هذا السؤال لا يحتوي على اختيارات متعددة (قد يكون نصياً).</p>`;
+                    }
+
+                    // 2. استخراج التفسير (Explanation)
+                    // التفسير قد يكون في حقول مختلفة حسب إصدار الـ Forms
+                    const explanationText = questionInfo?.Explanation || questionInfo?.explanation || null;
+                    if (explanationText) {
+                        explanationHtml = `
+                            <div class="mt-4 bg-cyan-900/20 border-r-4 border-cyan-500 p-3 rounded bg-opacity-50">
+                                <h4 class="text-cyan-400 font-bold text-sm mb-1">💡 التفسير (Explanation):</h4>
+                                <p class="text-gray-300 text-sm leading-relaxed">${explanationText}</p>
+                            </div>
+                        `;
+                    }
+
+                } catch (e) {
+                    choicesHtml = `<p class="text-red-400 mt-2">خطأ في تحليل بيانات السؤال.</p>`;
+                    console.error("Error parsing question info", e);
+                }
+
+                const questionElement = document.createElement('div');
+                questionElement.className = 'bg-gray-700 p-5 rounded-lg border border-gray-600 shadow-lg';
+                questionElement.innerHTML = `
+                    <div class="flex items-start">
+                        <span class="bg-gray-600 text-white text-xs font-bold px-2 py-1 rounded ml-3 mt-1">#${i + 1}</span>
+                        <h3 class="font-bold text-lg text-white leading-relaxed">${questionTitle}</h3>
+                    </div>
+                    
+                    <!-- Choices Section -->
+                    ${choicesHtml}
+
+                    <!-- Explanation Section -->
+                    ${explanationHtml}
+                `;
+                resultsContainer.appendChild(questionElement);
+            });
+
+             const successMessage = document.createElement('p');
+             successMessage.className = 'text-center mt-6 text-green-400 font-semibold text-lg';
+             successMessage.textContent = 'تم عرض جميع الأسئلة والاختيارات والتفسيرات بنجاح يا دكتور أحمد. 🚀';
+             outputDiv.appendChild(successMessage);
+        }
+
+        function displayError(message) {
+            outputDiv.innerHTML = `
+                <div class="bg-red-900 border border-red-700 text-red-200 px-4 py-3 rounded-lg text-center shadow-lg" role="alert">
+                    <strong class="font-bold text-xl block mb-1">خطأ!</strong>
+                    <span class="block">${message}</span>
+                </div>
+            `;
+        }
+
+    </script>
+</body>
+</html>
