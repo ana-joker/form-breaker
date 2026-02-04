@@ -21,16 +21,21 @@
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         
-        /* Study Mode Styles */
-        .study-mode .correct-answer-bg { background-color: #374151 !important; border-color: #4b5563 !important; }
+        /* Study Mode Styles - STRICT */
+        /* إجبار الإجابة الصحيحة على التطابق التام مع الإجابات الخاطئة */
+        .study-mode .correct-answer-bg { 
+            background-color: #1f2937 !important; /* bg-gray-800 Match exactly */
+            border-color: #4b5563 !important;     /* border-gray-600 Match exactly */
+            color: #9ca3af !important;            /* text-gray-400 Match exactly */
+            font-weight: normal !important;
+        }
+        
+        /* إخفاء الأيقونة والتفسير تماماً */
         .study-mode .correct-icon { display: none !important; }
         .study-mode .explanation-box { display: none !important; }
         .study-mode .choice-text { color: #9ca3af !important; font-weight: normal !important; }
         
-        /* Blur effect for hidden answers interaction */
-        .study-mode .question-card:hover .correct-answer-bg { background-color: #064e3b !important; border-color: #059669 !important; transition: all 0.3s; }
-        .study-mode .question-card:hover .correct-icon { display: inline !important; }
-        .study-mode .question-card:hover .choice-text { color: #d1fae5 !important; font-weight: bold !important; }
+        /* تم حذف تأثير الـ Hover الذي كان يكشف الإجابة */
     </style>
 </head>
 <body class="bg-gray-900 text-white flex items-center justify-center min-h-screen p-4">
