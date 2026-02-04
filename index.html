@@ -5,216 +5,354 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FormsBreaker - منصة تحليل البيانات</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        body {
-            font-family: 'Cairo', sans-serif;
+        body { font-family: 'Cairo', sans-serif; }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #06b6d4;
+            border-radius: 50%; width: 24px; height: 24px;
+            animation: spin 1s linear infinite; display: inline-block; margin-left: 8px;
         }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        /* Study Mode Styles */
+        .study-mode .correct-answer-bg { background-color: #374151 !important; border-color: #4b5563 !important; }
+        .study-mode .correct-icon { display: none !important; }
+        .study-mode .explanation-box { display: none !important; }
+        .study-mode .choice-text { color: #9ca3af !important; font-weight: normal !important; }
+        
+        /* Blur effect for hidden answers interaction */
+        .study-mode .question-card:hover .correct-answer-bg { background-color: #064e3b !important; border-color: #059669 !important; transition: all 0.3s; }
+        .study-mode .question-card:hover .correct-icon { display: inline !important; }
+        .study-mode .question-card:hover .choice-text { color: #d1fae5 !important; font-weight: bold !important; }
     </style>
 </head>
 <body class="bg-gray-900 text-white flex items-center justify-center min-h-screen p-4">
 
-    <div class="w-full max-w-4xl bg-gray-800 rounded-lg shadow-2xl p-6 md:p-8">
+    <div class="w-full max-w-5xl bg-gray-800 rounded-lg shadow-2xl p-6 md:p-8">
         
         <!-- Header -->
         <div class="text-center mb-6">
-            <h1 class="text-3xl md:text-4xl font-bold text-cyan-400">FormsBreaker V3</h1>
-            <p class="text-gray-400 mt-2">منصة تحليل البيانات المتقدمة بأمر من دكتور أحمد</p>
+            <h1 class="text-3xl md:text-4xl font-bold text-cyan-400">FormsBreaker V5 <span class="text-sm text-gray-500 bg-gray-900 px-2 py-1 rounded">Pro Suite</span></h1>
+            <p class="text-gray-400 mt-2">منصة دكتور أحمد: تحليل، مراجعة، وتصدير</p>
         </div>
 
         <!-- Instructions -->
         <div class="mb-6 bg-gray-900 p-4 rounded-lg border border-gray-700">
-            <h3 class="font-bold text-lg mb-2 text-cyan-300">تعليمات التشغيل (تدعم النماذج المحمية):</h3>
-            <ol class="list-decimal list-inside space-y-2 text-gray-300">
-                <li>**للوصول للنماذج المحمية:** قم بتسجيل الدخول إلى حساب Microsoft الخاص بك في متصفحك أولاً.</li>
-                <li>افتح رابط الامتحان (العادي أو المحمي) ثم اضغط `F12` لفتح أدوات المطور.</li>
-                <li>اذهب إلى تبويب **"الشبكة" (Network)**.</li>
-                <li>ابحث عن طلب يبدأ بـ `ResponsePageStartup.ashx`. قد تحتاج لتحديث الصفحة ليظهر الطلب.</li>
-                <li>اضغط عليه بالزر الأيمن واختر **Copy > Copy as cURL (bash)**.</li>
-                <li>الصق الأمر في الطرفية (Terminal/CMD)، قم بتشغيله، وانسخ **ناتج JSON الكامل** الذي يظهر.</li>
-                <li>الصق ناتج JSON في المربع أدناه لتحليله.</li>
-            </ol>
+            <details>
+                <summary class="cursor-pointer font-bold text-cyan-300 hover:text-cyan-200">اضغط لعرض تعليمات الاستخدام</summary>
+                <ol class="list-decimal list-inside space-y-2 text-gray-300 text-sm mt-3 px-4">
+                    <li>افتح الامتحان واضغط `F12` ثم اذهب لتبويب **Network**.</li>
+                    <li>ابحث عن `ResponsePageStartup.ashx`، انسخ الـ Response كـ JSON.</li>
+                    <li>الصق الكود أدناه واضغط تحليل.</li>
+                    <li>استخدم **"وضع المذاكرة"** لإخفاء الإجابات واختبار نفسك.</li>
+                </ol>
+            </details>
         </div>
 
         <!-- Input Form -->
-        <div class="space-y-4">
+        <div class="space-y-4 no-print">
             <div>
-                <label for="jsonData" class="block mb-2 text-sm font-medium text-gray-300">الصق ناتج JSON هنا:</label>
-                <textarea id="jsonData" rows="8" class="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-cyan-500 focus:border-cyan-500 block w-full p-2.5" placeholder='{"form":{"id":"...","questions":[...]}}'></textarea>
+                <textarea id="jsonData" rows="4" class="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-cyan-500 focus:border-cyan-500 block w-full p-2.5" placeholder='الصق كود JSON هنا...'></textarea>
             </div>
-            <button id="extractButton" class="w-full text-white bg-cyan-600 hover:bg-cyan-700 focus:ring-4 focus:ring-cyan-800 font-medium rounded-lg text-sm px-5 py-2.5 text-center">
-                تحليل وعرض الإجابات والتفسيرات
+            
+            <button id="extractButton" class="w-full text-white bg-cyan-600 hover:bg-cyan-700 focus:ring-4 focus:ring-cyan-800 font-medium rounded-lg text-sm px-5 py-3 text-center transition-colors shadow-lg">
+                🚀 بدء التحليل
             </button>
         </div>
 
-        <!-- Results and Error Display -->
-        <div id="output" class="mt-8">
-            <!-- Results will be injected here -->
+        <!-- Control Bar (Hidden initially) -->
+        <div id="controlBar" class="hidden flex flex-col md:flex-row gap-4 mt-8 bg-gray-750 p-4 rounded-lg border border-gray-700 items-center justify-between">
+            <!-- Search -->
+            <div class="w-full md:w-1/3 relative">
+                <input type="text" id="searchInput" class="bg-gray-900 border border-gray-600 text-white text-sm rounded-lg block w-full p-2.5 pl-10" placeholder="بحث في الأسئلة...">
+                <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                    <svg class="w-4 h-4 text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 20">
+                        <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m19 19-4-4m0-7A7 7 0 1 1 1 8a 7 7 0 0 1 14 0Z"/>
+                    </svg>
+                </div>
+            </div>
+
+            <!-- Toggles -->
+            <div class="flex items-center space-x-4 space-x-reverse">
+                <label class="inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="studyModeToggle" class="sr-only peer">
+                    <div class="relative w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-cyan-800 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-500"></div>
+                    <span class="ms-3 text-sm font-medium text-gray-300">وضع المذاكرة (إخفاء الحل) 🙈</span>
+                </label>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex gap-2 w-full md:w-auto">
+                <button id="copyForAiBtn" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded text-sm flex items-center justify-center gap-2" title="نسخ الأسئلة لنقلها إلى ChatGPT">
+                    <span>نسخ لـ AI 🤖</span>
+                </button>
+                <button id="downloadPdfBtn" class="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded text-sm flex items-center justify-center gap-2">
+                    <span>تحميل PDF 📸</span>
+                </button>
+            </div>
         </div>
+
+        <!-- Results Display -->
+        <div id="output" class="mt-6"></div>
+
+        <!-- Capture Container -->
+        <div id="captureContainer" class="bg-gray-800 p-4 rounded-lg hidden"></div>
 
     </div>
 
     <script>
         // ==============================================================================
-        // // منصة "FormsBreaker" (الإصدار 3.0 - التحليل الشامل) //
-        // // الميزات الجديدة: عرض الاختيارات، تمييز الصحيح، عرض التفسيرات //
-        // // تم التحديث بأمر ورؤية من: دكتور أحمد //
+        // // منصة FormsBreaker V5 Pro //
+        // // تطوير: دكتور أحمد //
         // ==============================================================================
+        
         const jsonDataInput = document.getElementById('jsonData');
         const extractButton = document.getElementById('extractButton');
+        const controlBar = document.getElementById('controlBar');
         const outputDiv = document.getElementById('output');
+        const searchInput = document.getElementById('searchInput');
+        const studyModeToggle = document.getElementById('studyModeToggle');
+        const downloadPdfBtn = document.getElementById('downloadPdfBtn');
+        const copyForAiBtn = document.getElementById('copyForAiBtn');
+        const captureContainer = document.getElementById('captureContainer');
 
+        let globalQuestions = [];
+
+        // --- Core Logic ---
         extractButton.addEventListener('click', () => {
             const jsonText = jsonDataInput.value.trim();
-
-            if (!jsonText) {
-                displayError('خطأ: مربع الإدخال فارغ. يرجى لصق بيانات JSON.');
-                return;
-            }
-
-            outputDiv.innerHTML = '';
+            if (!jsonText) return displayError('يرجى لصق كود JSON أولاً.');
 
             try {
-                // --- 1. تحليل بيانات JSON المدخلة ---
                 const formData = JSON.parse(jsonText);
-                
-                // --- 2. التحقق من بنية البيانات باستخدام دالة مرنة ---
                 const questions = findQuestionsArray(formData);
 
-                if (!questions || questions.length === 0) {
-                    throw new Error('بيانات JSON لا تحتوي على أسئلة، أو أن هيكلها غير متوقع. يرجى التأكد من نسخ كامل الناتج.');
-                }
+                if (!questions || questions.length === 0) throw new Error('لم يتم العثور على أسئلة.');
 
-                displayResults(questions);
-
+                globalQuestions = questions;
+                controlBar.classList.remove('hidden');
+                renderQuestions(globalQuestions); // Render all initially
+                
             } catch (error) {
-                console.error('Error in FormsBreaker:', error);
-                if (error instanceof SyntaxError) {
-                    displayError('خطأ فادح: النص المدخل ليس بصيغة JSON صالحة. يرجى التأكد من نسخ كامل الناتج من الطرفية.');
-                } else {
-                    displayError(`حدث خطأ أثناء التحليل: ${error.message}`);
-                }
+                console.error(error);
+                displayError('حدث خطأ في قراءة الملف. تأكد من نسخ كود JSON بشكل صحيح.');
             }
         });
 
-        function findQuestionsArray(data) {
-            const potentialPaths = [
-                data?.form?.questions,
-                data?.questionSetDefinition?.questions,
-                data?.data?.form?.questions,
-                data?.data?.questionSetDefinition?.questions,
-                data?.questions,
-                data?.data?.questions
-            ];
+        // --- Search Logic ---
+        searchInput.addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase();
+            const filtered = globalQuestions.filter(q => {
+                const title = (q.title || '').toLowerCase();
+                // يمكن توسيع البحث ليشمل الاختيارات أيضاً لو أردت
+                return title.includes(term);
+            });
+            renderQuestions(filtered);
+        });
 
-            for (const path of potentialPaths) {
-                if (path && Array.isArray(path)) {
-                    return path;
-                }
+        // --- Study Mode Logic ---
+        studyModeToggle.addEventListener('change', (e) => {
+            const container = document.getElementById('questionsContainer');
+            if (e.target.checked) {
+                container.classList.add('study-mode');
+            } else {
+                container.classList.remove('study-mode');
             }
-            return null;
-        }
+        });
 
-        function displayResults(questions) {
-            outputDiv.innerHTML = `
-                <h2 class="text-2xl font-bold text-center mb-4 text-cyan-400">التحليل الكامل للبيانات</h2>
-                <div class="space-y-4" id="questionsContainer"></div>
-            `;
-            const resultsContainer = outputDiv.querySelector('#questionsContainer');
-
-            questions.forEach((question, i) => {
-                const questionTitle = question.title || "عنوان سؤال غير معروف";
-                let choicesHtml = '';
-                let explanationHtml = '';
+        // --- Copy for AI Logic ---
+        copyForAiBtn.addEventListener('click', () => {
+            let textOutput = "Here is a quiz from my lecture. Please explain the answers:\n\n";
+            
+            globalQuestions.forEach((q, i) => {
+                textOutput += `Q${i+1}: ${q.title || 'Question'}\n`;
                 
                 try {
-                    // تحليل questionInfo
-                    const questionInfoStr = question.questionInfo;
-                    const questionInfo = (typeof questionInfoStr === 'string' && questionInfoStr.startsWith('{')) 
-                                         ? JSON.parse(questionInfoStr) 
-                                         : questionInfoStr;
+                    const qInfo = parseQuestionInfo(q.questionInfo);
+                    const choices = qInfo?.Choices || qInfo?.choices || [];
+                    choices.forEach(c => {
+                        const isCorrect = c.isAnswer === true || c.IsAnswerKey === true;
+                        const text = c.Description || c.description || '';
+                        textOutput += `- ${text} ${isCorrect ? '(Correct)' : ''}\n`;
+                    });
+                } catch(e){}
+                textOutput += "\n";
+            });
 
-                    // 1. استخراج الاختيارات
-                    const choices = questionInfo?.Choices || questionInfo?.choices || [];
-                    
+            // Use legacy method to avoid permission issues in iframes
+            const tempTextArea = document.createElement('textarea');
+            tempTextArea.value = textOutput;
+            document.body.appendChild(tempTextArea);
+            tempTextArea.select();
+            
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    const originalText = copyForAiBtn.innerHTML;
+                    copyForAiBtn.innerHTML = "تم النسخ! ✅";
+                    setTimeout(() => copyForAiBtn.innerHTML = originalText, 2000);
+                } else {
+                    alert('لم يتم النسخ، حاول يدوياً.');
+                }
+            } catch (err) {
+                console.error('Failed to copy', err);
+            }
+            
+            document.body.removeChild(tempTextArea);
+        });
+
+        // --- PDF Logic ---
+        downloadPdfBtn.addEventListener('click', async () => {
+            const btnOriginalText = downloadPdfBtn.innerHTML;
+            downloadPdfBtn.disabled = true;
+            downloadPdfBtn.innerHTML = `<div class="loader"></div>`;
+
+            try {
+                // Clone content to capture container to strip interactive elements if needed or keep style
+                const isStudyMode = studyModeToggle.checked;
+                
+                captureContainer.innerHTML = `
+                    <div class="p-4 bg-gray-900 text-white rounded-lg border border-gray-700 mb-4 text-center">
+                        <h1 class="text-3xl font-bold text-cyan-400">FormsBreaker Export</h1>
+                        <p class="text-gray-400">${isStudyMode ? 'نسخة للمراجعة (بدون حلول)' : 'نسخة الحلول الكاملة'} - دكتور أحمد</p>
+                    </div>
+                    <div class="${isStudyMode ? 'study-mode' : ''} space-y-4">
+                        ${document.getElementById('questionsContainer').innerHTML}
+                    </div>
+                `;
+                captureContainer.classList.remove('hidden');
+
+                const canvas = await html2canvas(captureContainer, {
+                    scale: 1.5, useCORS: true, backgroundColor: '#1f2937', logging: false
+                });
+
+                const imgData = canvas.toDataURL('image/jpeg', 0.8);
+                const { jsPDF } = window.jspdf;
+                const pdfWidth = canvas.width;
+                const pdfHeight = canvas.height;
+                const orientation = pdfWidth > pdfHeight ? 'l' : 'p';
+                
+                const pdf = new jsPDF(orientation, 'px', [pdfWidth, pdfHeight]);
+                pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+                pdf.save(`Exam_Export_${isStudyMode ? 'Study' : 'Solved'}.pdf`);
+
+                captureContainer.classList.add('hidden');
+                captureContainer.innerHTML = '';
+            } catch (err) {
+                console.error(err);
+                alert("حدث خطأ أثناء التصدير.");
+            } finally {
+                downloadPdfBtn.disabled = false;
+                downloadPdfBtn.innerHTML = btnOriginalText;
+            }
+        });
+
+        // --- Helper Functions ---
+        function parseQuestionInfo(info) {
+            if (typeof info === 'string' && info.startsWith('{')) return JSON.parse(info);
+            return info;
+        }
+
+        function findQuestionsArray(data) {
+            const paths = [
+                data?.form?.questions, data?.questionSetDefinition?.questions,
+                data?.data?.form?.questions, data?.data?.questionSetDefinition?.questions,
+                data?.questions, data?.data?.questions
+            ];
+            return paths.find(p => p && Array.isArray(p)) || null;
+        }
+
+        function renderQuestions(questions) {
+            if(questions.length === 0) {
+                outputDiv.innerHTML = '<p class="text-center text-gray-500">لا توجد نتائج مطابقة للبحث.</p>';
+                return;
+            }
+
+            // Reset container
+            outputDiv.innerHTML = `<div id="questionsContainer" class="space-y-6 ${studyModeToggle.checked ? 'study-mode' : ''}"></div>`;
+            const container = document.getElementById('questionsContainer');
+
+            questions.forEach((q, i) => {
+                const title = q.title || "سؤال بدون عنوان";
+                let choicesHtml = '';
+                let explanationHtml = '';
+                let hasChoices = false;
+
+                try {
+                    const qInfo = parseQuestionInfo(q.questionInfo);
+                    const choices = qInfo?.Choices || qInfo?.choices || [];
+                    const explanation = qInfo?.Explanation || qInfo?.explanation;
+
+                    // Handle Choices
                     if (choices.length > 0) {
-                        choicesHtml = `<div class="mt-3 space-y-2">`;
-                        choices.forEach(choice => {
-                            const isCorrect = choice.isAnswer === true || choice.IsAnswerKey === true;
-                            const choiceText = choice.Description || choice.description || 'نص خيار فارغ';
+                        hasChoices = true;
+                        choicesHtml = `<div class="mt-4 grid gap-3">`;
+                        choices.forEach(c => {
+                            const isCorrect = c.isAnswer === true || c.IsAnswerKey === true;
+                            const text = c.Description || c.description || '...';
                             
-                            // تنسيق مختلف للإجابة الصحيحة
-                            if (isCorrect) {
-                                choicesHtml += `
-                                    <div class="flex items-center p-3 bg-green-900/30 border border-green-600 rounded-lg">
-                                        <span class="text-green-400 text-xl ml-2">✓</span>
-                                        <span class="text-green-100 font-bold">${choiceText}</span>
-                                    </div>
-                                `;
-                            } else {
-                                choicesHtml += `
-                                    <div class="p-3 bg-gray-800 border border-gray-600 rounded-lg text-gray-400 opacity-80">
-                                        ${choiceText}
-                                    </div>
-                                `;
-                            }
+                            // Classes for styling
+                            const baseClass = "p-3 rounded-lg border flex items-center justify-between transition-all";
+                            const correctClass = isCorrect 
+                                ? "bg-green-900/40 border-green-600 text-green-100 correct-answer-bg font-bold choice-text" 
+                                : "bg-gray-800 border-gray-600 text-gray-400 choice-text";
+                            
+                            const icon = isCorrect ? '<span class="correct-icon text-green-400 text-lg">✓</span>' : '';
+
+                            choicesHtml += `
+                                <div class="${baseClass} ${correctClass}">
+                                    <span>${text}</span>
+                                    ${icon}
+                                </div>
+                            `;
                         });
                         choicesHtml += `</div>`;
-                    } else {
-                        choicesHtml = `<p class="text-yellow-500 mt-2 text-sm">هذا السؤال لا يحتوي على اختيارات متعددة (قد يكون نصياً).</p>`;
                     }
 
-                    // 2. استخراج التفسير (Explanation)
-                    // التفسير قد يكون في حقول مختلفة حسب إصدار الـ Forms
-                    const explanationText = questionInfo?.Explanation || questionInfo?.explanation || null;
-                    if (explanationText) {
+                    // Handle Explanation
+                    if (explanation) {
                         explanationHtml = `
-                            <div class="mt-4 bg-cyan-900/20 border-r-4 border-cyan-500 p-3 rounded bg-opacity-50">
-                                <h4 class="text-cyan-400 font-bold text-sm mb-1">💡 التفسير (Explanation):</h4>
-                                <p class="text-gray-300 text-sm leading-relaxed">${explanationText}</p>
+                            <div class="explanation-box mt-4 p-3 bg-cyan-900/20 border-r-2 border-cyan-500 rounded text-sm text-gray-300">
+                                <strong class="text-cyan-400 block mb-1">💡 توضيح:</strong>
+                                ${explanation}
                             </div>
                         `;
                     }
 
-                } catch (e) {
-                    choicesHtml = `<p class="text-red-400 mt-2">خطأ في تحليل بيانات السؤال.</p>`;
-                    console.error("Error parsing question info", e);
-                }
+                } catch (e) { console.error(e); }
 
-                const questionElement = document.createElement('div');
-                questionElement.className = 'bg-gray-700 p-5 rounded-lg border border-gray-600 shadow-lg';
-                questionElement.innerHTML = `
-                    <div class="flex items-start">
-                        <span class="bg-gray-600 text-white text-xs font-bold px-2 py-1 rounded ml-3 mt-1">#${i + 1}</span>
-                        <h3 class="font-bold text-lg text-white leading-relaxed">${questionTitle}</h3>
+                // Card HTML
+                const card = document.createElement('div');
+                card.className = "question-card bg-gray-700 p-5 rounded-lg border border-gray-600 shadow-md break-inside-avoid";
+                card.innerHTML = `
+                    <div class="flex gap-3">
+                        <span class="bg-gray-800 text-gray-300 font-mono text-xs py-1 px-2 rounded h-fit">#${i + 1}</span>
+                        <h3 class="font-bold text-lg text-white leading-relaxed w-full" dir="auto">${title}</h3>
                     </div>
-                    
-                    <!-- Choices Section -->
                     ${choicesHtml}
-
-                    <!-- Explanation Section -->
                     ${explanationHtml}
+                    ${!hasChoices ? '<p class="text-xs text-gray-500 mt-2 italic">سؤال مقالي أو لا يحتوي خيارات</p>' : ''}
                 `;
-                resultsContainer.appendChild(questionElement);
+                container.appendChild(card);
             });
-
-             const successMessage = document.createElement('p');
-             successMessage.className = 'text-center mt-6 text-green-400 font-semibold text-lg';
-             successMessage.textContent = 'تم عرض جميع الأسئلة والاختيارات والتفسيرات بنجاح يا دكتور أحمد. 🚀';
-             outputDiv.appendChild(successMessage);
+            
+            // Show result count
+            const countMsg = document.createElement('div');
+            countMsg.className = "text-center text-gray-400 text-sm mt-4 mb-2";
+            countMsg.innerText = `تم عرض ${questions.length} سؤال`;
+            outputDiv.insertBefore(countMsg, outputDiv.firstChild);
         }
 
-        function displayError(message) {
-            outputDiv.innerHTML = `
-                <div class="bg-red-900 border border-red-700 text-red-200 px-4 py-3 rounded-lg text-center shadow-lg" role="alert">
-                    <strong class="font-bold text-xl block mb-1">خطأ!</strong>
-                    <span class="block">${message}</span>
-                </div>
-            `;
+        function displayError(msg) {
+            outputDiv.innerHTML = `<div class="bg-red-900/50 border border-red-500 text-red-200 p-4 rounded text-center">${msg}</div>`;
         }
-
     </script>
 </body>
 </html>
