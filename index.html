@@ -21,21 +21,17 @@
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         
-        /* Study Mode Styles - STRICT */
-        /* إجبار الإجابة الصحيحة على التطابق التام مع الإجابات الخاطئة */
+        /* Study Mode Styles */
         .study-mode .correct-answer-bg { 
-            background-color: #1f2937 !important; /* bg-gray-800 Match exactly */
-            border-color: #4b5563 !important;     /* border-gray-600 Match exactly */
-            color: #9ca3af !important;            /* text-gray-400 Match exactly */
+            background-color: #1f2937 !important; 
+            border-color: #4b5563 !important;     
+            color: #9ca3af !important;            
             font-weight: normal !important;
         }
         
-        /* إخفاء الأيقونة والتفسير تماماً */
         .study-mode .correct-icon { display: none !important; }
         .study-mode .explanation-box { display: none !important; }
         .study-mode .choice-text { color: #9ca3af !important; font-weight: normal !important; }
-        
-        /* تم حذف تأثير الـ Hover الذي كان يكشف الإجابة */
     </style>
 </head>
 <body class="bg-gray-900 text-white flex items-center justify-center min-h-screen p-4">
@@ -44,8 +40,8 @@
         
         <!-- Header -->
         <div class="text-center mb-6">
-            <h1 class="text-3xl md:text-4xl font-bold text-cyan-400">FormsBreaker V5 <span class="text-sm text-gray-500 bg-gray-900 px-2 py-1 rounded">Pro Suite</span></h1>
-            <p class="text-gray-400 mt-2">منصة دكتور أحمد: تحليل، مراجعة، وتصدير</p>
+            <h1 class="text-3xl md:text-4xl font-bold text-cyan-400">FormsBreaker V6 <span class="text-sm text-gray-500 bg-gray-900 px-2 py-1 rounded">Pro Suite</span></h1>
+            <p class="text-gray-400 mt-2">منصة دكتور أحمد (✅/⚠️)</p>
         </div>
 
         <!-- Instructions -->
@@ -56,7 +52,7 @@
                     <li>افتح الامتحان واضغط `F12` ثم اذهب لتبويب **Network**.</li>
                     <li>ابحث عن `ResponsePageStartup.ashx`، انسخ الـ Response كـ JSON.</li>
                     <li>الصق الكود أدناه واضغط تحليل.</li>
-                    <li>استخدم **"وضع المذاكرة"** لإخفاء الإجابات واختبار نفسك.</li>
+                    <li>سيتم عرض الأسئلة التي تحتوي عناوينها على ✅ أولاً، ثم ⚠️.</li>
                 </ol>
             </details>
         </div>
@@ -68,11 +64,11 @@
             </div>
             
             <button id="extractButton" class="w-full text-white bg-cyan-600 hover:bg-cyan-700 focus:ring-4 focus:ring-cyan-800 font-medium rounded-lg text-sm px-5 py-3 text-center transition-colors shadow-lg">
-                🚀 بدء التحليل
+                🚀 تحليل وترتيب الأسئلة
             </button>
         </div>
 
-        <!-- Control Bar (Hidden initially) -->
+        <!-- Control Bar -->
         <div id="controlBar" class="hidden flex flex-col md:flex-row gap-4 mt-8 bg-gray-750 p-4 rounded-lg border border-gray-700 items-center justify-between">
             <!-- Search -->
             <div class="w-full md:w-1/3 relative">
@@ -114,7 +110,7 @@
 
     <script>
         // ==============================================================================
-        // // منصة FormsBreaker V5 Pro //
+        // // منصة FormsBreaker V6 Pro //
         // // تطوير: دكتور أحمد //
         // ==============================================================================
         
@@ -141,9 +137,26 @@
 
                 if (!questions || questions.length === 0) throw new Error('لم يتم العثور على أسئلة.');
 
-                globalQuestions = questions;
+                // Sorting Logic: Based purely on Title String Content
+                const sortedQuestions = questions.map(q => {
+                    const title = (q.title || "").trim();
+                    let score = 0; // Default priority
+                    
+                    // Priority 1: Contains Checkmark ✅
+                    if (title.includes("✅")) {
+                        score = 10;
+                    } 
+                    // Priority 2: Contains Warning/Triangle ⚠️ or 🔺
+                    else if (title.includes("⚠️") || title.includes("🔺")) {
+                        score = 5;
+                    }
+                    
+                    return { ...q, _score: score };
+                }).sort((a, b) => b._score - a._score);
+
+                globalQuestions = sortedQuestions;
                 controlBar.classList.remove('hidden');
-                renderQuestions(globalQuestions); // Render all initially
+                renderQuestions(globalQuestions); 
                 
             } catch (error) {
                 console.error(error);
@@ -156,7 +169,6 @@
             const term = e.target.value.toLowerCase();
             const filtered = globalQuestions.filter(q => {
                 const title = (q.title || '').toLowerCase();
-                // يمكن توسيع البحث ليشمل الاختيارات أيضاً لو أردت
                 return title.includes(term);
             });
             renderQuestions(filtered);
@@ -191,7 +203,6 @@
                 textOutput += "\n";
             });
 
-            // Use legacy method to avoid permission issues in iframes
             const tempTextArea = document.createElement('textarea');
             tempTextArea.value = textOutput;
             document.body.appendChild(tempTextArea);
@@ -220,7 +231,6 @@
             downloadPdfBtn.innerHTML = `<div class="loader"></div>`;
 
             try {
-                // Clone content to capture container to strip interactive elements if needed or keep style
                 const isStudyMode = studyModeToggle.checked;
                 
                 captureContainer.innerHTML = `
@@ -280,7 +290,6 @@
                 return;
             }
 
-            // Reset container
             outputDiv.innerHTML = `<div id="questionsContainer" class="space-y-6 ${studyModeToggle.checked ? 'study-mode' : ''}"></div>`;
             const container = document.getElementById('questionsContainer');
 
@@ -295,7 +304,6 @@
                     const choices = qInfo?.Choices || qInfo?.choices || [];
                     const explanation = qInfo?.Explanation || qInfo?.explanation;
 
-                    // Handle Choices
                     if (choices.length > 0) {
                         hasChoices = true;
                         choicesHtml = `<div class="mt-4 grid gap-3">`;
@@ -303,7 +311,6 @@
                             const isCorrect = c.isAnswer === true || c.IsAnswerKey === true;
                             const text = c.Description || c.description || '...';
                             
-                            // Classes for styling
                             const baseClass = "p-3 rounded-lg border flex items-center justify-between transition-all";
                             const correctClass = isCorrect 
                                 ? "bg-green-900/40 border-green-600 text-green-100 correct-answer-bg font-bold choice-text" 
@@ -321,7 +328,6 @@
                         choicesHtml += `</div>`;
                     }
 
-                    // Handle Explanation
                     if (explanation) {
                         explanationHtml = `
                             <div class="explanation-box mt-4 p-3 bg-cyan-900/20 border-r-2 border-cyan-500 rounded text-sm text-gray-300">
@@ -333,22 +339,31 @@
 
                 } catch (e) { console.error(e); }
 
-                // Card HTML
                 const card = document.createElement('div');
-                card.className = "question-card bg-gray-700 p-5 rounded-lg border border-gray-600 shadow-md break-inside-avoid";
+                card.className = "question-card bg-gray-700 p-5 rounded-lg border border-gray-600 shadow-md break-inside-avoid relative overflow-hidden";
+                
+                // Keep the border highlight just for organization based on the ORIGINAL marks
+                let borderClass = '';
+                if(q._score === 10) borderClass = 'border-l-4 border-l-green-500'; // Contains ✅
+                else if(q._score === 5) borderClass = 'border-l-4 border-l-yellow-500'; // Contains ⚠️
+
                 card.innerHTML = `
-                    <div class="flex gap-3">
-                        <span class="bg-gray-800 text-gray-300 font-mono text-xs py-1 px-2 rounded h-fit">#${i + 1}</span>
-                        <h3 class="font-bold text-lg text-white leading-relaxed w-full" dir="auto">${title}</h3>
+                    <div class="flex items-start gap-3 ${borderClass} pl-2">
+                        <span class="bg-gray-800 text-gray-300 font-mono text-xs py-1 px-2 rounded h-fit shrink-0">#${i + 1}</span>
+                        <div class="flex-1">
+                            <div class="flex items-center">
+                                <!-- No artificial icon added here, showing title AS IS -->
+                                <h3 class="font-bold text-lg text-white leading-relaxed" dir="auto">${title}</h3>
+                            </div>
+                            ${choicesHtml}
+                            ${explanationHtml}
+                            ${!hasChoices ? '<p class="text-xs text-gray-500 mt-2 italic">سؤال مقالي أو لا يحتوي خيارات</p>' : ''}
+                        </div>
                     </div>
-                    ${choicesHtml}
-                    ${explanationHtml}
-                    ${!hasChoices ? '<p class="text-xs text-gray-500 mt-2 italic">سؤال مقالي أو لا يحتوي خيارات</p>' : ''}
                 `;
                 container.appendChild(card);
             });
             
-            // Show result count
             const countMsg = document.createElement('div');
             countMsg.className = "text-center text-gray-400 text-sm mt-4 mb-2";
             countMsg.innerText = `تم عرض ${questions.length} سؤال`;
