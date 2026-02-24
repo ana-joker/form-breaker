@@ -41,7 +41,7 @@
         <!-- Header -->
         <div class="text-center mb-6">
             <h1 class="text-3xl md:text-4xl font-bold text-cyan-400">FormsBreaker V6 <span class="text-sm text-gray-500 bg-gray-900 px-2 py-1 rounded">Pro Suite</span></h1>
-            <p class="text-gray-400 mt-2">منصة دكتور أحمد (✅/⚠️)</p>
+            <p class="text-gray-400 mt-2">منصة دكتور أحمد: ترتيب حسب رموز الأهمية الأصلية (✅/⚠️)</p>
         </div>
 
         <!-- Instructions -->
@@ -103,9 +103,6 @@
         <!-- Results Display -->
         <div id="output" class="mt-6"></div>
 
-        <!-- Capture Container -->
-        <div id="captureContainer" class="bg-gray-800 p-4 rounded-lg hidden"></div>
-
     </div>
 
     <script>
@@ -122,7 +119,6 @@
         const studyModeToggle = document.getElementById('studyModeToggle');
         const downloadPdfBtn = document.getElementById('downloadPdfBtn');
         const copyForAiBtn = document.getElementById('copyForAiBtn');
-        const captureContainer = document.getElementById('captureContainer');
 
         let globalQuestions = [];
 
@@ -228,42 +224,97 @@
         downloadPdfBtn.addEventListener('click', async () => {
             const btnOriginalText = downloadPdfBtn.innerHTML;
             downloadPdfBtn.disabled = true;
-            downloadPdfBtn.innerHTML = `<div class="loader"></div>`;
+            // تحديث رسالة الزر لإظهار أنه يقوم بالمعالجة المتقدمة
+            downloadPdfBtn.innerHTML = `<div class="loader"></div> جاري تجهيز الصفحات...`;
 
             try {
                 const isStudyMode = studyModeToggle.checked;
+                const { jsPDF } = window.jspdf;
                 
-                captureContainer.innerHTML = `
-                    <div class="p-4 bg-gray-900 text-white rounded-lg border border-gray-700 mb-4 text-center">
-                        <h1 class="text-3xl font-bold text-cyan-400">FormsBreaker Export</h1>
-                        <p class="text-gray-400">${isStudyMode ? 'نسخة للمراجعة (بدون حلول)' : 'نسخة الحلول الكاملة'} - دكتور أحمد</p>
-                    </div>
-                    <div class="${isStudyMode ? 'study-mode' : ''} space-y-4">
-                        ${document.getElementById('questionsContainer').innerHTML}
+                // إعداد ملف PDF قياسي بحجم A4
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = pdf.internal.pageSize.getHeight();
+                const margin = 10;
+                let currentY = margin;
+
+                // 1. تصوير وتوليد رأس الصفحة (Header)
+                const headerWrapper = document.createElement('div');
+                headerWrapper.style.width = '800px';
+                headerWrapper.style.padding = '20px';
+                headerWrapper.style.backgroundColor = '#111827';
+                headerWrapper.style.fontFamily = "'Cairo', sans-serif";
+                headerWrapper.style.position = 'absolute';
+                headerWrapper.style.left = '-9999px'; // إخفاء عن العين أثناء التصوير
+                headerWrapper.dir = 'rtl';
+                headerWrapper.innerHTML = `
+                    <div style="border: 1px solid #374151; border-radius: 8px; padding: 20px; text-align: center;">
+                        <h1 style="font-size: 30px; font-weight: bold; color: #22d3ee; margin: 0;">FormsBreaker Export</h1>
+                        <p style="color: #9ca3af; margin-top: 10px; font-size: 16px;">${isStudyMode ? 'نسخة للمراجعة (بدون حلول)' : 'نسخة الحلول الكاملة'} - دكتور أحمد</p>
                     </div>
                 `;
-                captureContainer.classList.remove('hidden');
+                document.body.appendChild(headerWrapper);
+                const headerCanvas = await html2canvas(headerWrapper, { scale: 2, backgroundColor: '#111827' });
+                document.body.removeChild(headerWrapper);
 
-                const canvas = await html2canvas(captureContainer, {
-                    scale: 1.5, useCORS: true, backgroundColor: '#1f2937', logging: false
-                });
+                const headerImg = headerCanvas.toDataURL('image/jpeg', 0.95);
+                const headerHeight = (headerCanvas.height * (pdfWidth - margin * 2)) / headerCanvas.width;
+                pdf.addImage(headerImg, 'JPEG', margin, currentY, pdfWidth - margin * 2, headerHeight);
+                currentY += headerHeight + 5;
 
-                const imgData = canvas.toDataURL('image/jpeg', 0.8);
-                const { jsPDF } = window.jspdf;
-                const pdfWidth = canvas.width;
-                const pdfHeight = canvas.height;
-                const orientation = pdfWidth > pdfHeight ? 'l' : 'p';
+                // 2. تصوير الأسئلة كل واحد على حدة (لمنع مشكلة قص الصورة وتخطي الحد الأقصى للطول)
+                const originalCards = document.querySelectorAll('#questionsContainer .question-card');
                 
-                const pdf = new jsPDF(orientation, 'px', [pdfWidth, pdfHeight]);
-                pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+                for (let i = 0; i < originalCards.length; i++) {
+                    // تحديث الزر ليعرض تقدم العملية للمستخدم
+                    downloadPdfBtn.innerHTML = `<div class="loader"></div> صفحة ${i + 1}/${originalCards.length}`;
+
+                    const wrapper = document.createElement('div');
+                    wrapper.style.width = '800px';
+                    wrapper.style.padding = '10px';
+                    wrapper.style.backgroundColor = '#111827';
+                    wrapper.style.fontFamily = "'Cairo', sans-serif";
+                    wrapper.style.position = 'absolute';
+                    wrapper.style.left = '-9999px';
+                    wrapper.dir = 'rtl';
+                    
+                    if (isStudyMode) {
+                        wrapper.classList.add('study-mode');
+                    }
+                    
+                    // استنساخ السؤال لنتمكن من تصويره دون التأثير على شكل الموقع
+                    const cardClone = originalCards[i].cloneNode(true);
+                    wrapper.appendChild(cardClone);
+                    document.body.appendChild(wrapper);
+
+                    const cardCanvas = await html2canvas(wrapper, { 
+                        scale: 2, 
+                        backgroundColor: '#111827',
+                        useCORS: true
+                    });
+                    document.body.removeChild(wrapper);
+
+                    const cardImg = cardCanvas.toDataURL('image/jpeg', 0.95);
+                    const cardHeight = (cardCanvas.height * (pdfWidth - margin * 2)) / cardCanvas.width;
+
+                    // إذا كان السؤال سيتخطى طول الصفحة، قم بفتح صفحة A4 جديدة
+                    if (currentY + cardHeight > pdfHeight - margin) {
+                        pdf.addPage();
+                        currentY = margin; // إعادة ضبط المؤشر لأعلى الصفحة الجديدة
+                    }
+
+                    // إضافة صورة السؤال للـ PDF
+                    pdf.addImage(cardImg, 'JPEG', margin, currentY, pdfWidth - margin * 2, cardHeight);
+                    currentY += cardHeight + 2; // ترك مسافة صغيرة بين كل سؤال والذي يليه
+                }
+
                 pdf.save(`Exam_Export_${isStudyMode ? 'Study' : 'Solved'}.pdf`);
 
-                captureContainer.classList.add('hidden');
-                captureContainer.innerHTML = '';
             } catch (err) {
-                console.error(err);
+                console.error("Error generating PDF:", err);
                 alert("حدث خطأ أثناء التصدير.");
             } finally {
+                // إعادة الزر لشكله الطبيعي
                 downloadPdfBtn.disabled = false;
                 downloadPdfBtn.innerHTML = btnOriginalText;
             }
